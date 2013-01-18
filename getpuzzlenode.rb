@@ -89,11 +89,10 @@ class Puzzle < Base
   end
 end
 
-def go_dir(dir)
-  old = Dir.pwd
-  Dir.chdir(dir)
-  yield
-  Dir.chdir(old)
+def make_file(file_name, content = nil)
+  File.new(file_name, 'w+') do |f|
+    f.write(content) unless content.nil?
+  end
 end
 
 def copy(puzzles, location)
@@ -104,7 +103,6 @@ def copy(puzzles, location)
       pname = puzzle.name
       Dir.mkdir pname
       Dir.mkdir File.join(pname, 'data')
-      Dir.mkdir File.join(pname, 'source')
       
       puzzle.files.each do |file|
         fname = File.join Dir.pwd, puzzle.name, 'data', file[:name]
@@ -112,21 +110,17 @@ def copy(puzzles, location)
         FileUtils.cp file[:file].path, fname
       end
       
-      go_dir(File.join(pname, 'source')) do
-        # GIT INIT
-        `git init`
-        
-        # GIT IGNORE
-        gf = File.new('.gitignore', 'w+')
-        gf.write(GITIGNORE)
-        gf.close
-        
-        # README.md
-        gf = File.new('README.md', 'w+')
-        gf.write("##{pname}")
-        gf.close
+      # GIT INIT
+      begin
+        system('git init')
+      rescue
+        puts "You need to have Git installed to init a repository.\n\nError was:\n #{$?}"
       end
       
+      # GIT IGNORE
+      make_file '.gitignore', GITIGNORE
+      make_file 'README.md', "##{pname}"
+      make_file 'app.rb'
     end
     puts "FILES COPIED TO: #{location}"
   else
