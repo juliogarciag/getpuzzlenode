@@ -1,3 +1,5 @@
+#!/usr/bin/env ruby
+
 require 'uri'
 require 'net/http'
 require 'nokogiri'
@@ -6,7 +8,7 @@ require 'fileutils'
 
 HOST = "http://puzzlenode.com"
 
-GITIGNORE = "
+GITIGNORE = <<FILE
 *.gem
 *.rbc
 .bundle
@@ -28,7 +30,7 @@ doc/
  
 # OS X stuff
 .DS_Store
-".strip
+FILE
 
 class Base
   def initialize(hash)
@@ -89,10 +91,18 @@ class Puzzle < Base
   end
 end
 
+def go_dir(folder)
+  old = Dir.pwd
+  Dir.chdir(folder)
+  yield
+  Dir.chdir(old)
+end
+
 def make_file(file_name, content = nil)
-  File.new(file_name, 'w+') do |f|
-    f.write(content) unless content.nil?
-  end
+  f = File.new(file_name, 'w+')
+  f.write(content) unless content.nil?
+  f.close
+  f
 end
 
 def copy(puzzles, location)
@@ -110,17 +120,19 @@ def copy(puzzles, location)
         FileUtils.cp file[:file].path, fname
       end
       
-      # GIT INIT
-      begin
-        system('git init')
-      rescue
-        puts "You need to have Git installed to init a repository.\n\nError was:\n #{$?}"
+      go_dir(pname) do
+        # GIT INIT
+        begin
+          system('git init')
+        rescue
+          puts "You need to have Git installed to init a repository.\n\nError was:\n #{$?}"
+        end
+        
+        # GIT IGNORE
+        make_file '.gitignore', GITIGNORE
+        make_file 'README.md', "##{pname}"
+        make_file 'app.rb'
       end
-      
-      # GIT IGNORE
-      make_file '.gitignore', GITIGNORE
-      make_file 'README.md', "##{pname}"
-      make_file 'app.rb'
     end
     puts "FILES COPIED TO: #{location}"
   else
